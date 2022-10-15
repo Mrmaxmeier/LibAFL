@@ -9,3 +9,6 @@ edition = "2021"
 anyhow = "1"
 libafl = { path = "../../libafl" }
 libafl_v8 = { path = "../../libafl_v8" }
+
+[features]
+tui = []
