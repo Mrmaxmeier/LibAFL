@@ -1,9 +1,6 @@
-#[cfg(windows)]
-use std::ptr::write_volatile;
 use std::{
-    cell::RefCell,
-    fs::{File, Permissions},
-    net::{IpAddr, Ipv4Addr, SocketAddr},
+    fs::File,
+    net::SocketAddr,
     path::{Path, PathBuf},
     rc::Rc,
     str::FromStr,
@@ -15,46 +12,32 @@ use libafl::monitors::tui::TuiMonitor;
 #[cfg(not(feature = "tui"))]
 use libafl::monitors::SimpleMonitor;
 use libafl::{
-    bolts::{current_nanos, rands::StdRand, tuples::tuple_list, AsSlice},
+    bolts::{current_nanos, rands::StdRand, tuples::tuple_list},
     corpus::{Corpus, InMemoryCorpus, OnDiskCorpus},
     events::SimpleEventManager,
-    executors::{inprocess::InProcessExecutor, ExitKind},
     feedbacks::{CrashFeedback, MaxMapFeedback},
     fuzzer::{Fuzzer, StdFuzzer},
     generators::RandPrintablesGenerator,
-    inputs::{BytesInput, HasTargetBytes},
     mutators::scheduled::{havoc_mutations, StdScheduledMutator},
-    observers::{StdMapObserver, TimeObserver},
-    prelude::{
-        powersched::PowerSchedule, ConstFeedback, HitcountsMapObserver, PowerQueueScheduler,
-    },
-    schedulers::{
-        IndexesLenTimeMinimizerScheduler, LenTimeMinimizerScheduler, QueueScheduler,
-        StdWeightedScheduler,
-    },
-    stages::{mutational::StdMutationalStage, CalibrationStage, StdPowerMutationalStage},
+    observers::TimeObserver,
+    prelude::{powersched::PowerSchedule, HitcountsMapObserver},
+    schedulers::{IndexesLenTimeMinimizerScheduler, StdWeightedScheduler},
+    stages::{CalibrationStage, StdPowerMutationalStage},
     state::{HasSolutions, StdState},
 };
 use libafl_v8::{
     deno_core,
-    deno_core::{FsModuleLoader, JsRuntime, RuntimeOptions},
+    deno_core::FsModuleLoader,
     deno_runtime,
     deno_runtime::{
         inspector_server::InspectorServer,
         ops::io::StdioPipe,
         worker::{MainWorker, WorkerOptions},
     },
-    runtime,
-    runtime::Runtime,
-    v8,
-    v8::{ContextScope, Global},
-    JSMapObserver, Mutex, V8Executor,
+    initialize_v8, JSMapObserver, V8Executor,
 };
 
-use crate::{
-    deno_runtime::{ops::io::Stdio, BootstrapOptions},
-    v8::Context,
-};
+use crate::deno_runtime::{ops::io::Stdio, BootstrapOptions};
 
 #[allow(clippy::similar_names)]
 pub fn main() -> anyhow::Result<()> {
@@ -83,11 +66,12 @@ pub fn main() -> anyhow::Result<()> {
             ts_version: "".to_string(),
             unstable: false,
             user_agent: "libafl".to_string(),
+            inspect: false,
         },
         extensions: vec![],
         unsafely_ignore_certificate_errors: None,
         root_cert_store: None,
-        maybe_inspector_server: Some(inspector_server.clone()),
+        maybe_inspector_server: Some(inspector_server),
         should_break_on_first_statement: true,
         get_error_class_fn: None,
         origin_storage_dir: None,
@@ -108,22 +92,18 @@ pub fn main() -> anyhow::Result<()> {
             stdout: StdioPipe::File(File::create("stdout.log")?),
             stderr: StdioPipe::File(File::create("stderr.log")?),
         },
+        cache_storage_dir: None,
     };
 
     let js_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("js/target.js");
     let main_module = deno_core::resolve_path(&js_path.to_string_lossy())?;
     let permissions = deno_runtime::permissions::Permissions::allow_all();
 
-    let worker = Arc::new(Mutex::new(MainWorker::bootstrap_from_options(
-        main_module.clone(),
-        permissions,
-        options,
-    )));
+    let worker = MainWorker::bootstrap_from_options(main_module.clone(), permissions, options);
 
-    let rt = Runtime::new()?;
+    initialize_v8(worker).unwrap();
 
-    let map_observer =
-        HitcountsMapObserver::new(JSMapObserver::new("jsmap", &rt, worker.clone()).unwrap());
+    let map_observer = HitcountsMapObserver::new(JSMapObserver::new("jsmap").unwrap());
     let time_observer = TimeObserver::new("time");
 
     // Feedback to rate the interestingness of an input
@@ -173,8 +153,6 @@ pub fn main() -> anyhow::Result<()> {
 
     // Create the executor for an in-process function with just one observer
     let mut executor = V8Executor::new(
-        &rt,
-        worker,
         main_module,
         tuple_list!(map_observer, time_observer),
         &mut fuzzer,
