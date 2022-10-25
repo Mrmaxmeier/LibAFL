@@ -11,10 +11,10 @@ use std::{
 use ahash::AHasher;
 use deno_core::LocalInspectorSession;
 use libafl::{
-    bolts::{AsIter, AsMutSlice, HasLen},
+    bolts::{tuples::Named, AsIter, AsMutSlice, HasLen},
     executors::ExitKind,
+    inputs::UsesInput,
     observers::{MapObserver, Observer},
-    prelude::Named,
     state::HasMetadata,
     Error,
 };
@@ -180,11 +180,11 @@ impl Debug for JSMapObserver {
     }
 }
 
-impl<I, S> Observer<I, S> for JSMapObserver
+impl<S> Observer<S> for JSMapObserver
 where
-    S: HasMetadata,
+    S: HasMetadata + UsesInput,
 {
-    fn pre_exec(&mut self, _state: &mut S, _input: &I) -> Result<(), Error> {
+    fn pre_exec(&mut self, _state: &mut S, _input: &S::Input) -> Result<(), Error> {
         self.reset_map()?;
         if !self.initialized {
             let inspector = self.inspector.as_ref().unwrap().clone();
@@ -208,7 +208,12 @@ where
         Ok(())
     }
 
-    fn post_exec(&mut self, state: &mut S, _input: &I, _exit_kind: &ExitKind) -> Result<(), Error> {
+    fn post_exec(
+        &mut self,
+        state: &mut S,
+        _input: &S::Input,
+        _exit_kind: &ExitKind,
+    ) -> Result<(), Error> {
         let session = self.inspector.as_ref().unwrap().clone();
         let coverage = unsafe { RUNTIME.as_ref() }.unwrap().block_on(async {
             let worker = unsafe { WORKER.as_mut() }.unwrap();
@@ -235,14 +240,14 @@ where
         Ok(())
     }
 
-    fn pre_exec_child(&mut self, _state: &mut S, _input: &I) -> Result<(), Error> {
+    fn pre_exec_child(&mut self, _state: &mut S, _input: &S::Input) -> Result<(), Error> {
         Err(Error::unsupported("Cannot be used in a forking context"))
     }
 
     fn post_exec_child(
         &mut self,
         _state: &mut S,
-        _input: &I,
+        _input: &S::Input,
         _exit_kind: &ExitKind,
     ) -> Result<(), Error> {
         Err(Error::unsupported("Cannot be used in a forking context"))

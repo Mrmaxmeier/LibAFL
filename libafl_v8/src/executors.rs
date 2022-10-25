@@ -14,9 +14,9 @@ use libafl::{
     events::{EventFirer, EventRestarter},
     executors::{Executor, ExitKind, HasObservers},
     feedbacks::Feedback,
-    inputs::Input,
-    observers::ObserversTuple,
-    state::{HasClientPerfMonitor, HasSolutions, State},
+    inputs::{Input, UsesInput},
+    observers::{ObserversTuple, UsesObservers},
+    state::{HasClientPerfMonitor, HasSolutions, State, UsesState},
     Error, HasObjective,
 };
 use v8::{Function, Local, TryCatch};
@@ -24,25 +24,24 @@ use v8::{Function, Local, TryCatch};
 use crate::{values::IntoJSValue, RUNTIME, WORKER};
 
 /// Executor which executes JavaScript using Deno and V8.
-pub struct V8Executor<I, OT, S>
+pub struct V8Executor<OT, S>
 where
-    I: Input + IntoJSValue,
-    OT: ObserversTuple<I, S>,
-    S: State,
+    OT: ObserversTuple<S>,
+    S: UsesInput,
 {
     id: ModuleId,
     observers: OT,
-    phantom: PhantomData<(I, S)>,
+    phantom: PhantomData<S>,
 }
 
-impl<I, OT, S> V8Executor<I, OT, S>
+impl<I, OT, S> V8Executor<OT, S>
 where
     I: Input + IntoJSValue,
-    OT: ObserversTuple<I, S>,
-    S: State,
+    OT: ObserversTuple<S>,
+    S: UsesInput<Input = I>,
 {
     /// Create a new V8 executor.
-    pub fn new<EM, OF, Z>(
+    pub fn new<EM, OF, Z: UsesState<State = S>>(
         main_module: ModuleSpecifier,
         observers: OT,
         _fuzzer: &mut Z,
@@ -50,10 +49,10 @@ where
         _mgr: &mut EM,
     ) -> Result<Self, Error>
     where
-        EM: EventFirer<I> + EventRestarter<S>,
-        OF: Feedback<I, S>,
-        S: HasSolutions<I> + HasClientPerfMonitor,
-        Z: HasObjective<I, OF, S>,
+        EM: EventFirer + EventRestarter,
+        OF: Feedback<S>,
+        S: HasSolutions + HasClientPerfMonitor,
+        Z: HasObjective<OF>,
     {
         let id = match unsafe { RUNTIME.as_ref() }
             .expect("Runtime must be initialized before creating executors; use initialize_v8!")
@@ -130,11 +129,13 @@ where
     }
 }
 
-impl<EM, I, OT, S, Z> Executor<EM, I, S, Z> for V8Executor<I, OT, S>
+impl<EM, I, OT, S, Z> Executor<EM, Z> for V8Executor<OT, S>
 where
+    EM: UsesState<State = S>,
+    Z: UsesState<State = S>,
     I: Input + IntoJSValue,
-    OT: ObserversTuple<I, S>,
-    S: State,
+    OT: ObserversTuple<S>,
+    S: State + UsesInput<Input = I>,
 {
     fn run_target(
         &mut self,
@@ -147,11 +148,11 @@ where
     }
 }
 
-impl<I, OT, S> HasObservers<I, OT, S> for V8Executor<I, OT, S>
+impl<OT, S, I> HasObservers for V8Executor<OT, S>
 where
-    I: Input + IntoJSValue,
-    OT: ObserversTuple<I, S>,
-    S: State,
+    I: IntoJSValue,
+    S: State + UsesInput<Input = I>,
+    OT: ObserversTuple<S>,
 {
     fn observers(&self) -> &OT {
         &self.observers
@@ -162,10 +163,18 @@ where
     }
 }
 
-impl<I, OT, S> Debug for V8Executor<I, OT, S>
+impl<OT, S, I> UsesObservers for V8Executor<OT, S>
 where
-    I: Input + IntoJSValue,
-    OT: ObserversTuple<I, S>,
+    I: IntoJSValue,
+    S: State + UsesInput<Input = I>,
+    OT: ObserversTuple<S>,
+{
+    type Observers = OT;
+}
+
+impl<OT, S> Debug for V8Executor<OT, S>
+where
+    OT: ObserversTuple<S>,
     S: State,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -173,4 +182,8 @@ where
             .field("observers", &self.observers)
             .finish_non_exhaustive()
     }
+}
+
+impl<OT: ObserversTuple<S>, S: UsesInput> UsesState for V8Executor<OT, S> {
+    type State = S;
 }
