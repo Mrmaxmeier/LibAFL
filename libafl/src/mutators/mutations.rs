@@ -766,6 +766,50 @@ impl BytesRandSetMutator {
     }
 }
 
+/// Replace a contiguous chunk of bytes with random values.
+#[derive(Default, Debug)]
+pub struct BytesReplaceRunMutator;
+
+impl<I, S> Mutator<I, S> for BytesReplaceRunMutator
+where
+    S: HasRand,
+    I: HasBytesVec,
+{
+    fn mutate(
+        &mut self,
+        state: &mut S,
+        input: &mut I,
+        _stage_idx: i32,
+    ) -> Result<MutationResult, Error> {
+        let size = input.bytes().len();
+        if size == 0 {
+            return Ok(MutationResult::Skipped);
+        }
+        let off = state.rand_mut().below(size as u64) as usize;
+        let len = 1 + state.rand_mut().below(min(16, size - off) as u64) as usize;
+
+        let buf = input.bytes_mut();
+        for c in buf.iter_mut().skip(off).take(len) {
+            *c = state.rand_mut().next() as u8;
+        }
+
+        Ok(MutationResult::Mutated)
+    }
+}
+
+impl Named for BytesReplaceRunMutator {
+    fn name(&self) -> &str {
+        "BytesReplaceRunMutator"
+    }
+}
+
+impl BytesReplaceRunMutator {
+    /// Creates a new [`BytesReplaceRunMutator`].
+    pub fn new() -> Self {
+        Self
+    }
+}
+
 /// Bytes copy mutation for inputs with a bytes vector
 #[derive(Default, Debug)]
 pub struct BytesCopyMutator;
@@ -1459,6 +1503,7 @@ mod tests {
             BytesRandInsertMutator::new(),
             BytesSetMutator::new(),
             BytesRandSetMutator::new(),
+            BytesReplaceRunMutator::new(),
             BytesCopyMutator::new(),
             BytesSwapMutator::new(),
         )

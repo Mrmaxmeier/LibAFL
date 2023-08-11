@@ -28,7 +28,8 @@ Welcome to `LibAFL`
     clippy::module_name_repetitions,
     clippy::ptr_cast_constness,
     clippy::unsafe_derive_deserialize,
-    clippy::similar_names
+    clippy::similar_names,
+    clippy::must_use_candidate
 )]
 #![cfg_attr(not(test), warn(
     missing_debug_implementations,
