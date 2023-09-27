@@ -1,5 +1,6 @@
 use std::{path::PathBuf, process::Command};
 
+#[allow(clippy::too_many_lines)]
 fn main() {
     if cfg!(any(feature = "cargo-clippy", docsrs)) {
         return; // skip when clippy or docs is running
