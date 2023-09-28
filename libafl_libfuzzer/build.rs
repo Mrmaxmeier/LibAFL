@@ -5,6 +5,12 @@ use std::{
     process::{Command, Stdio},
 };
 
+#[cfg(feature = "rabbit")]
+const NAMESPACE: &str = "🐇";
+#[cfg(not(feature = "rabbit"))]
+const NAMESPACE: &str = "__libafl";
+const NAMESPACE_LEN: usize = NAMESPACE.as_bytes().len();
+
 #[allow(clippy::too_many_lines)]
 fn main() {
     if cfg!(any(feature = "cargo-clippy", docsrs)) {
@@ -116,9 +122,6 @@ fn main() {
             .unwrap();
 
         let mut redefinitions_file = BufWriter::new(File::create(&redefined_symbols).unwrap());
-
-        const NAMESPACE: &str = "🐇";
-        const NAMESPACE_LEN: usize = NAMESPACE.as_bytes().len();
 
         let replacement = format!("_ZN{NAMESPACE_LEN}{NAMESPACE}");
 
