@@ -494,6 +494,23 @@ fn write_crash<W: Write>(
     Ok(())
 }
 
+#[cfg(all(any(target_os = "linux", target_os = "android"), target_arch = "x86"))]
+fn write_crash<W: Write>(
+    writer: &mut BufWriter<W>,
+    signal: Signal,
+    ucontext: &ucontext_t,
+) -> Result<(), std::io::Error> {
+    writeln!(
+        writer,
+        "Received signal {} at {:#08x}, fault address: {:#08x}",
+        signal,
+        ucontext.uc_mcontext.gregs[libc::REG_EIP as usize],
+        ucontext.uc_mcontext.cr2
+    )?;
+
+    Ok(())
+}
+
 #[cfg(all(
     any(target_os = "linux", target_os = "android"),
     target_arch = "aarch64"
