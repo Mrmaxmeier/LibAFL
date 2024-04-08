@@ -9,10 +9,7 @@ runs:
         fetch-depth: 0
     - uses: Swatinem/rust-cache@v2
       with: { shared-key: "${{ runner.os }}-shared-fuzzer-cache" }
-    - uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
+    - uses: dtolnay/rust-toolchain@stable
     - name: Add nightly rustfmt and clippy
       shell: bash
       run: rustup toolchain install nightly --component rustfmt --component clippy --allow-downgrade
