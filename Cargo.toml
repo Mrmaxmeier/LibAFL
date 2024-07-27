@@ -48,6 +48,82 @@ exclude = [
 [workspace.package]
 version = "0.13.2"
 
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "deny"
+
+[workspace.lints.rust]
+ambiguous_glob_reexports = "allow"
+unexpected_cfgs = "deny"
+
+# TODO: add note about deny-config'd lints in CI
+# list them as warn explicitly here?
+
+# #![cfg_attr(not(test), warn(
+#     missing_debug_implementations,
+#     missing_docs,
+#     //trivial_casts,
+#     trivial_numeric_casts,
+#     unused_extern_crates,
+#     unused_import_braces,
+#     unused_qualifications,
+#     //unused_results
+# ))]
+# #![cfg_attr(test, deny(
+#     missing_debug_implementations,
+#     missing_docs,
+#     //trivial_casts,
+#     trivial_numeric_casts,
+#     unused_extern_crates,
+#     unused_import_braces,
+#     unused_qualifications,
+#     unused_must_use,
+#     //unused_results
+# ))]
+# #![cfg_attr(
+#     test,
+#     deny(
+#         bad_style,
+#         dead_code,
+#         improper_ctypes,
+#         non_shorthand_field_patterns,
+#         no_mangle_generic_items,
+#         overflowing_literals,
+#         path_statements,
+#         patterns_in_fns_without_body,
+#         unconditional_recursion,
+#         unused,
+#         unused_allocation,
+#         unused_comparisons,
+#         unused_parens,
+#         while_true
+#     )
+# )]
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -3 }
+cargo = { level = "warn", priority = -2 }
+pedantic = { level = "deny", priority = -2 }
+cargo_common_metadata = { level = "deny", priority = -1 }
+
+unreadable_literal = { level = "allow", priority = -1 }
+type_repetition_in_bounds = { level = "allow", priority = -1 }
+missing_errors_doc = { level = "allow", priority = -1 }
+cast_possible_truncation = { level = "allow", priority = -1 }
+used_underscore_binding = { level = "allow", priority = -1 }
+ptr_as_ptr = { level = "allow", priority = -1 }
+missing_panics_doc = { level = "allow", priority = -1 }
+missing_docs_in_private_items = { level = "allow", priority = -1 }
+module_name_repetitions = { level = "allow", priority = -1 }
+ptr_cast_constness = { level = "allow", priority = -1 }
+unsafe_derive_deserialize = { level = "allow", priority = -1 }
+similar_names = { level = "allow", priority = -1 }
+too_many_lines = { level = "allow", priority = -1 }
+into_iter_without_iter = { level = "allow", priority = -1 }
+
+# "Till they fix this buggy lint in clippy"
+borrow_as_ptr = { level = "allow", priority = -1 }
+borrow_deref_ref = { level = "allow", priority = -1 }
+
 [profile.release]
 lto = true
 codegen-units = 1

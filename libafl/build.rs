@@ -1,5 +1,3 @@
-#![forbid(unexpected_cfgs)]
-
 #[rustversion::nightly]
 fn nightly() {
     println!("cargo:rustc-cfg=nightly");

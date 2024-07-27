@@ -299,3 +299,6 @@ windows = "0.51.1"
 #lto = true
 #opt-level = 3
 #debug = true
+
+[lints]
+workspace = true

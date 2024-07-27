@@ -55,3 +55,6 @@ serde = { version = "1.0", default-features = false, features = [
   "alloc",
   "derive",
 ] } # serialization lib
+
+[lints]
+workspace = true
